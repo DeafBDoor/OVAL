@@ -6,18 +6,23 @@ on:
 
 jobs:
   buildRelease:
+    env:
+      TAG: ${{ github.ref_name }}
     runs-on: ubuntu-latest
-
     steps:
+      - name: Set environment
+        run: |
+          echo "VERSION=$(echo $TAG | sed -nre 's/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p')" >> $GITHUB_ENV
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Build Release Artifacts
+      - name: Fetch Java dependency
         env:
-          TAG: ${{ github.ref_name }}
+          SAXONHE_URL: https://repo1.maven.org/maven2/net/sf/saxon/Saxon-HE/9.9.1-8/Saxon-HE-9.9.1-8.jar
+        run: curl ${SAXONHE_URL} --output rsrc/saxon9he.jar
+      - name: Build Release Artifacts
         run: |
-            VERSION=$(echo $TAG | sed -nre 's/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p')
             echo "Build OVAL Version ${VERSION}"
             make OVAL_VERSION=${VERSION}
       - name: Attach Release Artifacts
@@ -25,7 +30,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
-          TAG: ${{ github.ref_name }}
         run: |
-            VERSION=$(echo $TAG | sed -nre 's/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p')
             gh release upload $TAG schemas-${VERSION}.zip oval_docs-${VERSION}.zip --clobber --repo $OWNER/$REPO
